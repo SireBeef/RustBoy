@@ -1,0 +1,24 @@
+# === Rust build ===
+/target/
+/**/target/
+
+# === ROMs (never commit actual game files) ===
+/roms/
+/**/*.gb
+/**/*.gbc
+/**/*.gba
+
+# === OS junk ===
+.DS_Store
+Thumbs.db
+
+# === Editor junk ===
+*.swp
+*.swo
+*.swn
+*~
+.idea/
+.vscode/
+
+# === Logs ===
+*.log
