@@ -1,13 +1,21 @@
-use std::fs::File;
-use std::io::Read;
+mod rom_loader;
 
 use emulator_core::Cpu;
+use rom_loader::load_rom;
+use std::process;
 
 fn main() {
-    let mut f = File::open("roms/pokemon-red.gb").unwrap();
-    let mut rom = Vec::new();
-    let _ = f.read_to_end(&mut rom);
-    let mut cpu = Cpu::new(rom);
+    let rom_path = "roms/pokemon-blue.gb";
 
+    let rom = match load_rom(rom_path) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("Error loading ROM: {}", e);
+            eprintln!("Please ensure the ROM file exists at: {}", rom_path);
+            process::exit(1);
+        }
+    };
+
+    let mut cpu = Cpu::new(rom);
     cpu.run();
 }

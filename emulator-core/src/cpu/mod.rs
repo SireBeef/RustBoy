@@ -18,7 +18,12 @@ impl Cpu {
         Cpu {
             registers: Registers::new(),
             memory_bus: MemoryBus::new(game_rom),
-            pc: 0x0000, // Start at 0x0000 for simplicity (we'll adjust for boot ROM later)
+            // Start at 0x0000 for simplicity (we'll adjust for boot ROM later)
+            // program counter is used to keep track of where we are in reading the rom
+            // at each pc location, we find unsigned 8 bit integers representing
+            // op codes -- sometimes instructions are multi-byte (opcode + operands)
+            // so eventually we need to increment PC by variable amounts.
+            pc: 0x0000,
             sp: 0xFFFE, // Typical initial SP value on Game Boy
                         // 1111 1111 1111 1110
         }
