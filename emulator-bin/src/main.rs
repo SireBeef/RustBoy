@@ -1,7 +1,4 @@
-mod rom_loader;
-
-use emulator_core::Cpu;
-use rom_loader::load_rom;
+use emulator_core::{Cpu, load_rom};
 use std::process;
 
 fn main() {
