@@ -18,12 +18,13 @@ impl Cpu {
         Cpu {
             registers: Registers::new(),
             memory_bus: MemoryBus::new(game_rom),
-            // Start at 0x0000 for simplicity (we'll adjust for boot ROM later)
+            // Start at 0x0100 for simplicity (we'll adjust for boot ROM later)
+            // We start there because that's where the game code jump instruction starts
             // program counter is used to keep track of where we are in reading the rom
             // at each pc location, we find unsigned 8 bit integers representing
             // op codes -- sometimes instructions are multi-byte (opcode + operands)
             // so eventually we need to increment PC by variable amounts.
-            pc: 0x0000,
+            pc: 0x0100,
             sp: 0xFFFE, // Typical initial SP value on Game Boy
                         // 1111 1111 1111 1110
         }
@@ -57,9 +58,15 @@ impl Cpu {
         new_value
     }
 
+    // TODO make sure this actually works...
+    fn manipulate_register(&mut self, reg: &mut u8, work: impl FnOnce(&mut Cpu, u8) -> u8) {
+        let value = *reg;
+        *reg = work(self, value);
+    }
+
     pub fn run(&mut self) {
         // This is temporary just to verify we are reading from ROM
-        for _ in 0..10 {
+        for _ in 0..256 {
             let opcode = self.memory_bus.read_byte(self.pc);
             println!("PC: 0x{:04X}, Opcode: 0x{:02X}", self.pc, opcode);
             self.pc = self.pc.wrapping_add(1);

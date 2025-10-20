@@ -32,7 +32,25 @@ impl Registers {
 
     fn set_bc(&mut self, value: u16) {
         self.b = (value >> 8) as u8;
-        self.c = (value & 0xFF) as u8;
+        self.c = (value & 0x00FF) as u8;
+    }
+
+    fn get_de(&self) -> u16 {
+        (self.d as u16) << 8 | self.e as u16
+    }
+
+    fn set_de(&mut self, value: u16) {
+        self.d = (value >> 8) as u8;
+        self.e = (value & 0x00FF) as u8;
+    }
+
+    fn get_hl(&self) -> u16 {
+        (self.h as u16) << 8 | self.l as u16
+    }
+
+    fn set_hl(&mut self, value: u16) {
+        self.h = (value >> 8) as u8;
+        self.l = (value & 0x00FF) as u8;
     }
 }
 
@@ -49,6 +67,24 @@ fn test_bc_register_roundtrip() {
     assert_eq!(regs.get_bc(), 0x1234);
     assert_eq!(regs.b, 0x12);
     assert_eq!(regs.c, 0x34);
+}
+
+#[test]
+fn test_de_register_roundtrip() {
+    let mut regs = Registers::new();
+    regs.set_de(0xABCD);
+    assert_eq!(regs.get_de(), 0xABCD);
+    assert_eq!(regs.d, 0xAB);
+    assert_eq!(regs.e, 0xCD);
+}
+
+#[test]
+fn test_hl_register_roundtrip() {
+    let mut regs = Registers::new();
+    regs.set_hl(0x5678);
+    assert_eq!(regs.get_hl(), 0x5678);
+    assert_eq!(regs.h, 0x56);
+    assert_eq!(regs.l, 0x78);
 }
 
 #[test]

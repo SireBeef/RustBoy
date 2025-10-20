@@ -1,3 +1,7 @@
 [workspace]
 members = ["emulator-core", "emulator-bin"]
 default-members = ["emulator-bin"]
+
+[workspace.dependencies]
+winit = "0.30"
+softbuffer = "0.4"
