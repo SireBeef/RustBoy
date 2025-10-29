@@ -47,6 +47,16 @@ impl ApplicationHandler for App {
                 println!("The close button was pressed; stopping");
                 event_loop.exit();
             }
+            WindowEvent::Resized(new_size) => {
+                // This will help to maintain the hardcoded
+                // Gameboy resolution aspect ratio based on the
+                // current size of the window
+                if let Some(pixels) = &mut self.pixels {
+                    pixels
+                        .resize_surface(new_size.width, new_size.height)
+                        .unwrap();
+                }
+            }
             WindowEvent::RedrawRequested => {
                 if let Some(pixels) = &mut self.pixels {
                     let frame = pixels.frame_mut();
