@@ -13,32 +13,31 @@ use winit::event_loop::EventLoop;
 use winit::window::Window;
 use winit::window::WindowId;
 
-#[derive(Default)]
 struct App {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
     frame_count: u64,
+    cpu: Cpu,
+}
+
+impl App {
+    fn new(
+        window: Option<Arc<Window>>,
+        pixels: Option<Pixels<'static>>,
+        frame_count: u64,
+        cpu: Cpu,
+    ) -> Self {
+        Self {
+            window,
+            pixels,
+            frame_count,
+            cpu,
+        }
+    }
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window_attributes = Window::default_attributes()
-            .with_title("RustBoy Emulator")
-            .with_inner_size(LogicalSize::new(160 * 4, 144 * 4));
-
-        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-
-        let window_size = window.inner_size();
-        let pixels = Pixels::new(
-            160,
-            144,
-            SurfaceTexture::new(window_size.width, window_size.height, window.clone()),
-        )
-        .unwrap();
-
-        self.pixels = Some(pixels);
-        self.window = Some(window);
-
         self.window.as_ref().unwrap().request_redraw();
     }
 
@@ -49,11 +48,10 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                println!("Redraw");
-
                 if let Some(pixels) = &mut self.pixels {
                     let frame = pixels.frame_mut();
                     let color = if (self.frame_count / 60) % 2 == 0 {
+                        self.cpu.run();
                         [0xff, 0x00, 0x00, 0xff]
                     } else {
                         [0x00, 0x00, 0xff, 0xff]
@@ -89,7 +87,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
     event_loop.set_control_flow(ControlFlow::Poll);
 
-    let mut app = App::default();
+    let window_attributes = Window::default_attributes()
+        .with_title("RustBoy Emulator")
+        .with_inner_size(LogicalSize::new(160 * 4, 144 * 4));
+
+    let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+
+    let window_size = window.inner_size();
+    let pixels = Pixels::new(
+        160,
+        144,
+        SurfaceTexture::new(window_size.width, window_size.height, window.clone()),
+    )
+    .unwrap();
+
+    let pixels_option = Some(pixels);
+    let window_option = Some(window);
+
+    let cpu = Cpu::new(rom);
+    let mut app = App::new(window_option, pixels_option, 0, cpu);
     event_loop.run_app(&mut app)?;
     Ok(())
 }
