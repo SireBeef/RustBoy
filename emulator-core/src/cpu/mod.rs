@@ -64,6 +64,10 @@ impl Cpu {
         *reg = work(self, value);
     }
 
+    pub fn step(&mut self) -> u8 {
+        1
+    }
+
     pub fn run(&mut self) {
         // This is temporary just to verify we are reading from ROM
         for _ in 0..256 {
