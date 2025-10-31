@@ -30,13 +30,27 @@ impl Cpu {
         }
     }
 
-    fn execute(&mut self, instruction: Instruction) {
+    fn decode(&mut self, opcode: u8) -> Instruction {
+        match opcode {
+            0x00 => Instruction::NOP,
+            0x81 => Instruction::ADD(ArithmeticTarget::C),
+            // TODO: Implement remaining opcodes
+            _ => {
+                println!("Unknown opcode: 0x{:02X} at PC: 0x{:04X}", opcode, self.pc - 1);
+                panic!("Unimplemented opcode!");
+            }
+        }
+    }
+
+    fn execute(&mut self, instruction: Instruction) -> u8 {
         match instruction {
+            Instruction::NOP => 4,
             Instruction::ADD(target) => match target {
                 ArithmeticTarget::C => {
                     let value = self.registers.c;
                     let new_value = self.add(value);
                     self.registers.a = new_value;
+                    4
                 }
                 _ => {
                     println!("Opcode not implemented!: {}", target);
@@ -65,16 +79,14 @@ impl Cpu {
     }
 
     pub fn step(&mut self) -> u8 {
-        1
-    }
+        let opcode = self.memory_bus.read_byte(self.pc);
+        println!("PC: 0x{:04X}, Opcode: 0x{:02X}", self.pc, opcode);
+        self.pc = self.pc.wrapping_add(1);
 
-    pub fn run(&mut self) {
-        // This is temporary just to verify we are reading from ROM
-        for _ in 0..256 {
-            let opcode = self.memory_bus.read_byte(self.pc);
-            println!("PC: 0x{:04X}, Opcode: 0x{:02X}", self.pc, opcode);
-            self.pc = self.pc.wrapping_add(1);
-        }
+        let instruction = self.decode(opcode);
+        let cycles = self.execute(instruction);
+
+        cycles
     }
 }
 

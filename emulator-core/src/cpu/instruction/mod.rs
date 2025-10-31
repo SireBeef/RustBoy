@@ -2,6 +2,8 @@ use std::fmt;
 
 pub enum Instruction {
     ADD(ArithmeticTarget),
+    NOP,
+    // TODO: Add more instructions as we implement them
 }
 
 pub enum ArithmeticTarget {

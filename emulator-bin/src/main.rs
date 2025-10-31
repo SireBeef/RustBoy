@@ -18,7 +18,7 @@ const FIXED_TIMESTEP: f64 = 1.0 / 60.0; // 60 FPS target
 const MAX_ACCUMULATED_TIME: f64 = 0.1; // Don't accumulate more than 100ms
 
 struct App {
-    window: Option<Arc<Window>>,
+    window: Arc<Window>,
     pixels: Pixels<'static>,
     frame_count: u64,
     cpu: Cpu,
@@ -27,12 +27,7 @@ struct App {
 }
 
 impl App {
-    fn new(
-        window: Option<Arc<Window>>,
-        pixels: Pixels<'static>,
-        frame_count: u64,
-        cpu: Cpu,
-    ) -> Self {
+    fn new(window: Arc<Window>, pixels: Pixels<'static>, frame_count: u64, cpu: Cpu) -> Self {
         Self {
             window,
             pixels,
@@ -46,7 +41,7 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        self.window.as_ref().unwrap().request_redraw();
+        self.window.request_redraw();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
@@ -74,7 +69,7 @@ impl ApplicationHandler for App {
                     self.accumulated_time =
                         (self.accumulated_time + delta).min(MAX_ACCUMULATED_TIME);
 
-                    // Execute fixed timesteps
+                    // Execute fixed timesteps outerloop renders multiple frames if behind
                     while self.accumulated_time >= FIXED_TIMESTEP {
                         let target_cycles = (FIXED_TIMESTEP * ONE_SECOND_IN_CYCLES as f64) as usize;
                         let mut cycle_count_total = 0;
@@ -101,7 +96,7 @@ impl ApplicationHandler for App {
                 self.pixels.render().unwrap();
 
                 self.frame_count += 1;
-                self.window.as_ref().unwrap().request_redraw();
+                self.window.request_redraw();
             }
             _ => (),
         }
@@ -137,10 +132,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .unwrap();
 
-    let window_option = Some(window);
-
     let cpu = Cpu::new(rom);
-    let mut app = App::new(window_option, pixels, 0, cpu);
+    let mut app = App::new(window, pixels, 0, cpu);
     event_loop.run_app(&mut app)?;
     Ok(())
 }
