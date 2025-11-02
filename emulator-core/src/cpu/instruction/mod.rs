@@ -1,9 +1,18 @@
 use std::fmt;
 
+pub enum JumpTest {
+    NotZero,
+    Zero,
+    NotCarry,
+    Carry,
+    Always,
+}
+
 pub enum Instruction {
-    ADD(ArithmeticTarget),
     NOP,
-    // TODO: Add more instructions as we implement them
+    ADD(ArithmeticTarget),
+    CP(ArithmeticTarget),
+    JP(JumpTest),
 }
 
 pub enum ArithmeticTarget {
@@ -14,6 +23,8 @@ pub enum ArithmeticTarget {
     E, // F is the flags register so it is not an ArithmeticTarget
     H,
     L,
+    HLI,
+    D8,
 }
 
 impl fmt::Display for ArithmeticTarget {
@@ -26,6 +37,8 @@ impl fmt::Display for ArithmeticTarget {
             ArithmeticTarget::E => write!(f, "E"),
             ArithmeticTarget::H => write!(f, "H"),
             ArithmeticTarget::L => write!(f, "L"),
+            ArithmeticTarget::HLI => write!(f, "HLI"),
+            ArithmeticTarget::D8 => write!(f, "D8"),
         }
     }
 }
