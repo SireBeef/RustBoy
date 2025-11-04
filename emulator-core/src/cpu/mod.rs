@@ -33,8 +33,16 @@ impl Cpu {
     fn decode(&mut self, opcode: u8) -> Instruction {
         match opcode {
             0x00 => Instruction::NOP,
-            0xC3 => Instruction::JP(JumpTest::Always),
             0x81 => Instruction::ADD(ArithmeticTarget::C),
+            0xA8 => Instruction::XOR(ArithmeticTarget::B),
+            0xA9 => Instruction::XOR(ArithmeticTarget::C),
+            0xAA => Instruction::XOR(ArithmeticTarget::D),
+            0xAB => Instruction::XOR(ArithmeticTarget::E),
+            0xAC => Instruction::XOR(ArithmeticTarget::H),
+            0xAD => Instruction::XOR(ArithmeticTarget::L),
+            0xAE => Instruction::XOR(ArithmeticTarget::HLI),
+            0xAF => Instruction::XOR(ArithmeticTarget::A),
+            0xC3 => Instruction::JP(JumpTest::Always),
             0xB8 => Instruction::CP(ArithmeticTarget::B),
             0xB9 => Instruction::CP(ArithmeticTarget::C),
             0xBA => Instruction::CP(ArithmeticTarget::D),
@@ -43,6 +51,7 @@ impl Cpu {
             0xBD => Instruction::CP(ArithmeticTarget::L),
             0xBE => Instruction::CP(ArithmeticTarget::HLI),
             0xBF => Instruction::CP(ArithmeticTarget::A),
+            0xEE => Instruction::XOR(ArithmeticTarget::D8),
             0xFE => Instruction::CP(ArithmeticTarget::D8),
             _ => {
                 println!(
@@ -58,6 +67,28 @@ impl Cpu {
     fn execute(&mut self, instruction: Instruction) -> (u16, u8) {
         match instruction {
             Instruction::NOP => (self.pc.wrapping_add(1), 4),
+            Instruction::ADD(target) => match target {
+                ArithmeticTarget::C => {
+                    let value = self.registers.c;
+                    let new_value = self.add(value);
+                    self.registers.a = new_value;
+                    (self.pc.wrapping_add(1), 4)
+                }
+                _ => {
+                    println!("Opcode not implemented!: {}", target);
+                    panic!();
+                }
+            },
+            Instruction::XOR(arithmetic_target) => {
+                let (next_counter, cycles) = match arithmetic_target {
+                    ArithmeticTarget::HLI => (self.pc.wrapping_add(1), 8),
+                    ArithmeticTarget::D8 => (self.pc.wrapping_add(2), 8),
+                    _ => (self.pc.wrapping_add(1), 4),
+                };
+                let val = self.get_value_from_target(arithmetic_target);
+                self.manipulate_8bit_register(DestinationRegister::A, val, Cpu::xor);
+                (next_counter, cycles)
+            }
             Instruction::JP(test) => {
                 let jump_condition = match test {
                     JumpTest::NotZero => !self.registers.f.zero,
@@ -78,18 +109,6 @@ impl Cpu {
                 self.compare(val);
                 (next_counter, cycles)
             }
-            Instruction::ADD(target) => match target {
-                ArithmeticTarget::C => {
-                    let value = self.registers.c;
-                    let new_value = self.add(value);
-                    self.registers.a = new_value;
-                    (self.pc.wrapping_add(1), 4)
-                }
-                _ => {
-                    println!("Opcode not implemented!: {}", target);
-                    panic!();
-                }
-            },
         }
     }
 
@@ -139,10 +158,31 @@ impl Cpu {
         new_value
     }
 
-    // TODO make sure this actually works...
-    fn manipulate_8bit_register(&mut self, reg: &mut u8, work: impl FnOnce(&mut Cpu, u8) -> u8) {
-        let value = *reg;
-        *reg = work(self, value);
+    fn xor(&mut self, value: u8) -> u8 {
+        let new_value = self.registers.a ^ value;
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.subtract = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.carry = false;
+        new_value
+    }
+
+    fn manipulate_8bit_register(
+        &mut self,
+        destination_register: DestinationRegister,
+        value: u8,
+        work: impl FnOnce(&mut Cpu, u8) -> u8,
+    ) {
+        match destination_register {
+            DestinationRegister::A => self.registers.a = work(self, value),
+            DestinationRegister::B => self.registers.b = work(self, value),
+            DestinationRegister::C => self.registers.c = work(self, value),
+            DestinationRegister::D => self.registers.d = work(self, value),
+            DestinationRegister::E => self.registers.e = work(self, value),
+            DestinationRegister::H => self.registers.h = work(self, value),
+            DestinationRegister::L => self.registers.l = work(self, value),
+            _ => panic!("Unknown destination register"),
+        };
     }
 
     pub fn step(&mut self) -> u8 {

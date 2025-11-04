@@ -12,7 +12,18 @@ pub enum Instruction {
     NOP,
     ADD(ArithmeticTarget),
     CP(ArithmeticTarget),
+    XOR(ArithmeticTarget),
     JP(JumpTest),
+}
+
+pub enum DestinationRegister {
+    A,
+    B,
+    C,
+    D,
+    E,
+    H,
+    L,
 }
 
 pub enum ArithmeticTarget {

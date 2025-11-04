@@ -104,7 +104,7 @@ impl ApplicationHandler for App {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let rom_path = "roms/pokemon-blue.gb";
+    let rom_path = "roms/tetris.gb";
 
     let rom = match load_rom(rom_path) {
         Ok(data) => data,
