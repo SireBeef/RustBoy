@@ -34,16 +34,30 @@ impl Cpu {
         match opcode {
             0x00 => Instruction::NOP,
             0x01 => Instruction::LD(LoadType::Word(LoadWordTarget::BC)),
+            0x05 => Instruction::DEC(ArithmeticSource::B),
             0x06 => Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::D8)),
+            0x0d => Instruction::DEC(ArithmeticSource::C),
             0x0e => Instruction::LD(LoadType::Byte(LoadByteTarget::C, LoadByteSource::D8)),
             0x11 => Instruction::LD(LoadType::Word(LoadWordTarget::DE)),
+            0x15 => Instruction::DEC(ArithmeticSource::D),
             0x16 => Instruction::LD(LoadType::Byte(LoadByteTarget::D, LoadByteSource::D8)),
+            0x18 => Instruction::JR(JumpTest::Always),
+            0x1d => Instruction::DEC(ArithmeticSource::E),
             0x1e => Instruction::LD(LoadType::Byte(LoadByteTarget::E, LoadByteSource::D8)),
+            0x20 => Instruction::JR(JumpTest::NotZero),
             0x21 => Instruction::LD(LoadType::Word(LoadWordTarget::HL)),
+            0x25 => Instruction::DEC(ArithmeticSource::H),
             0x26 => Instruction::LD(LoadType::Byte(LoadByteTarget::H, LoadByteSource::D8)),
+            0x28 => Instruction::JR(JumpTest::Zero),
+            0x2d => Instruction::DEC(ArithmeticSource::L),
             0x2e => Instruction::LD(LoadType::Byte(LoadByteTarget::L, LoadByteSource::D8)),
             0x31 => Instruction::LD(LoadType::Word(LoadWordTarget::SP)),
+            0x30 => Instruction::JR(JumpTest::NotCarry),
+            0x32 => Instruction::LD(LoadType::IndirectFromA(Indirect::HLIndirectMinus)),
+            0x35 => Instruction::DEC(ArithmeticSource::HLI),
             0x36 => Instruction::LD(LoadType::Byte(LoadByteTarget::HLI, LoadByteSource::D8)),
+            0x38 => Instruction::JR(JumpTest::Carry),
+            0x3d => Instruction::DEC(ArithmeticSource::A),
             0x3e => Instruction::LD(LoadType::Byte(LoadByteTarget::A, LoadByteSource::D8)),
 
             0x40 => Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::B)),
@@ -189,6 +203,42 @@ impl Cpu {
                     };
                     (self.pc.wrapping_add(3), 12)
                 }
+                LoadType::IndirectFromA(target) => {
+                    let a = self.registers.a;
+                    match target {
+                        Indirect::BCIndirect => {
+                            let bc = self.registers.get_bc();
+                            self.memory_bus.write_byte(bc, a)
+                        }
+                        Indirect::DEIndirect => {
+                            let de = self.registers.get_de();
+                            self.memory_bus.write_byte(de, a)
+                        }
+                        Indirect::HLIndirectMinus => {
+                            let hl = self.registers.get_hl();
+                            self.registers.set_hl(hl.wrapping_sub(1));
+                            self.memory_bus.write_byte(hl, a);
+                        }
+                        Indirect::HLIndirectPlus => {
+                            let hl = self.registers.get_hl();
+                            self.registers.set_hl(hl.wrapping_add(1));
+                            self.memory_bus.write_byte(hl, a);
+                        }
+                        Indirect::WordIndirect => {
+                            let word = self.read_next_word();
+                            self.memory_bus.write_byte(word, a);
+                        }
+                        Indirect::LastByteIndirect => {
+                            let c = self.registers.c as u16;
+                            self.memory_bus.write_byte(0xFF00 + c, a);
+                        }
+                    };
+
+                    match target {
+                        Indirect::WordIndirect => (self.pc.wrapping_add(3), 16),
+                        _ => (self.pc.wrapping_add(1), 8),
+                    }
+                }
             },
             Instruction::ADD(source) => match source {
                 ArithmeticSource::C => {
@@ -200,6 +250,22 @@ impl Cpu {
                 _ => {
                     println!("Opcode not implemented!: {}", source);
                     panic!();
+                }
+            },
+            Instruction::DEC(target) => match target {
+                ArithmeticSource::HLI => {
+                    let value = self.memory_bus.read_byte(self.registers.get_hl());
+                    let new_val = self.dec(value);
+                    self.memory_bus.write_byte(self.registers.get_hl(), new_val);
+                    (self.pc.wrapping_add(1), 12)
+                }
+                _ => {
+                    self.manipulate_8bit_register(
+                        target.to_destination_register(),
+                        self.get_value_from_source(target),
+                        Cpu::dec,
+                    );
+                    (self.pc.wrapping_add(1), 4)
                 }
             },
             Instruction::XOR(source) => {
@@ -221,6 +287,16 @@ impl Cpu {
                     JumpTest::Always => true,
                 };
                 self.jump(jump_condition)
+            }
+            Instruction::JR(test) => {
+                let jump_condition = match test {
+                    JumpTest::NotZero => !self.registers.f.zero,
+                    JumpTest::NotCarry => !self.registers.f.carry,
+                    JumpTest::Zero => self.registers.f.zero,
+                    JumpTest::Carry => self.registers.f.carry,
+                    JumpTest::Always => true,
+                };
+                self.jump_relative(jump_condition)
             }
             Instruction::CP(source) => {
                 let (next_counter, cycles) = match source {
@@ -275,6 +351,21 @@ impl Cpu {
         }
     }
 
+    fn jump_relative(&self, should_jump: bool) -> (u16, u8) {
+        let next_step = self.pc.wrapping_add(2);
+        if should_jump {
+            let offset = self.memory_bus.read_byte(self.pc + 1) as i8;
+            let pc = if offset >= 0 {
+                next_step.wrapping_add(offset as u16)
+            } else {
+                next_step.wrapping_sub(offset.abs() as u16)
+            };
+            (pc, 12)
+        } else {
+            (next_step, 8)
+        }
+    }
+
     fn add(&mut self, value: u8) -> u8 {
         let (new_value, did_overflow) = self.registers.a.overflowing_add(value);
         self.registers.f.zero = new_value == 0;
@@ -284,6 +375,14 @@ impl Cpu {
         // together result in a value bigger than 0xF. If the result is larger than 0xF
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.registers.f.half_carry = (self.registers.a & 0xF) + (value & 0xF) > 0xF;
+        new_value
+    }
+
+    fn dec(&mut self, value: u8) -> u8 {
+        let new_value = value.wrapping_sub(1);
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.subtract = true;
+        self.registers.f.half_carry = (value & 0xF) == 0x0;
         new_value
     }
 

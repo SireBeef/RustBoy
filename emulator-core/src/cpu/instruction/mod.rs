@@ -12,9 +12,11 @@ pub enum Instruction {
     NOP,
     LD(LoadType),
     ADD(ArithmeticSource),
+    DEC(ArithmeticSource),
     CP(ArithmeticSource),
     XOR(ArithmeticSource),
     JP(JumpTest),
+    JR(JumpTest),
 }
 
 pub enum DestinationRegister {
@@ -27,6 +29,7 @@ pub enum DestinationRegister {
     L,
 }
 
+#[derive(Debug)]
 pub enum ArithmeticSource {
     A,
     B,
@@ -39,9 +42,19 @@ pub enum ArithmeticSource {
     D8,
 }
 
+pub enum Indirect {
+    BCIndirect,
+    DEIndirect,
+    HLIndirectMinus,
+    HLIndirectPlus,
+    WordIndirect,
+    LastByteIndirect,
+}
+
 pub enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(LoadWordTarget),
+    IndirectFromA(Indirect),
 }
 
 pub enum LoadByteTarget {
@@ -72,6 +85,23 @@ pub enum LoadWordTarget {
     DE,
     HL,
     SP,
+}
+
+impl ArithmeticSource {
+    pub fn to_destination_register(&self) -> DestinationRegister {
+        match self {
+            ArithmeticSource::A => DestinationRegister::A,
+            ArithmeticSource::B => DestinationRegister::B,
+            ArithmeticSource::C => DestinationRegister::C,
+            ArithmeticSource::D => DestinationRegister::D,
+            ArithmeticSource::E => DestinationRegister::E,
+            ArithmeticSource::H => DestinationRegister::H,
+            ArithmeticSource::L => DestinationRegister::L,
+            ArithmeticSource::HLI | ArithmeticSource::D8 => {
+                panic!("Cannot convert {:?} to DestinationRegister", self)
+            }
+        }
+    }
 }
 
 impl fmt::Display for ArithmeticSource {
