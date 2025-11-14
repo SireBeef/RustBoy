@@ -15,14 +15,14 @@ pub struct Registers {
 impl Registers {
     pub fn new() -> Self {
         Registers {
-            a: 0,
-            b: 0,
-            c: 0,
-            d: 0,
-            e: 0,
+            a: 0x01,
+            b: 0xFF,
+            c: 0x13,
+            d: 0x00,
+            e: 0xC1,
             f: FlagsRegister::new(),
-            h: 0,
-            l: 0,
+            h: 0x84,
+            l: 0x03,
         }
     }
 

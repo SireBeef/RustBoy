@@ -10,6 +10,7 @@ pub enum JumpTest {
 
 pub enum Instruction {
     NOP,
+    DI,
     LD(LoadType),
     ADD(ArithmeticSource),
     DEC(ArithmeticSource),
@@ -55,6 +56,8 @@ pub enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(LoadWordTarget),
     IndirectFromA(Indirect),
+    TargetByteAddressSourceA,
+    TargetASourceByteAddress,
 }
 
 pub enum LoadByteTarget {

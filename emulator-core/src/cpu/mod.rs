@@ -11,6 +11,7 @@ pub struct Cpu {
     memory_bus: MemoryBus,
     pc: u16,
     sp: u16,
+    interrupts_enabled: bool,
 }
 
 impl Cpu {
@@ -26,7 +27,7 @@ impl Cpu {
             // so eventually we need to increment PC by variable amounts.
             pc: 0x0100,
             sp: 0xFFFE, // Typical initial SP value on Game Boy
-                        // 1111 1111 1111 1110
+            interrupts_enabled: false,
         }
     }
 
@@ -146,7 +147,10 @@ impl Cpu {
             0xBD => Instruction::CP(ArithmeticSource::L),
             0xBE => Instruction::CP(ArithmeticSource::HLI),
             0xBF => Instruction::CP(ArithmeticSource::A),
+            0xE0 => Instruction::LD(LoadType::TargetByteAddressSourceA),
             0xEE => Instruction::XOR(ArithmeticSource::D8),
+            0xF0 => Instruction::LD(LoadType::TargetASourceByteAddress),
+            0xF3 => Instruction::DI,
             0xFE => Instruction::CP(ArithmeticSource::D8),
             _ => {
                 println!(
@@ -162,6 +166,10 @@ impl Cpu {
     fn execute(&mut self, instruction: Instruction) -> (u16, u8) {
         match instruction {
             Instruction::NOP => (self.pc.wrapping_add(1), 4),
+            Instruction::DI => {
+                self.interrupts_enabled = false;
+                (self.pc.wrapping_add(1), 4)
+            }
             Instruction::LD(load_type) => match load_type {
                 LoadType::Byte(target, source) => {
                     let source_value = match source {
@@ -239,6 +247,17 @@ impl Cpu {
                         _ => (self.pc.wrapping_add(1), 8),
                     }
                 }
+                LoadType::TargetByteAddressSourceA => {
+                    let next_byte = self.memory_bus.read_byte(self.pc.wrapping_add(1));
+                    self.memory_bus
+                        .write_byte(0xFF00 + next_byte as u16, self.registers.a);
+                    (self.pc.wrapping_add(2), 12)
+                }
+                LoadType::TargetASourceByteAddress => {
+                    let next_byte = self.memory_bus.read_byte(self.pc.wrapping_add(1));
+                    self.registers.a = self.memory_bus.read_byte(0xFF00 + next_byte as u16);
+                    (self.pc.wrapping_add(2), 12)
+                }
             },
             Instruction::ADD(source) => match source {
                 ArithmeticSource::C => {
@@ -305,6 +324,8 @@ impl Cpu {
                     _ => (self.pc.wrapping_add(1), 4),
                 };
                 let val = self.get_value_from_source(source);
+                println!("0x{:02X}", self.registers.a);
+                println!("0x{:02X}", val);
                 self.compare(val);
                 (next_counter, cycles)
             }
@@ -419,7 +440,7 @@ impl Cpu {
 
         let instruction = self.decode(opcode);
         let (next_pc, cycles) = self.execute(instruction);
-        println!("Next PC: 0x{:04X}", next_pc);
+        // println!("Next PC: 0x{:04X}", next_pc);
         self.pc = next_pc;
         cycles
     }
